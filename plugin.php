@@ -1,7 +1,7 @@
 <?php
 # Plugin Name: Azure Group to WordPress Roles
-# Plugin URI:  
-# Description: 
+# Plugin URI:  https://github.com/dannysummerlin/AzureGroupsForWordPress
+# Description: Works with the WP SAML plugin by Pantheon, handles group syncing after login
 # Version:     20241127
 # Author:      Danny Summerlin
 # Author URI:  https://summerlin.co
@@ -150,7 +150,7 @@ if($pluginSettings['Integrations']['hook_login_new']) {
 	add_action($pluginSettings['Integrations']['hook_login_new'], 'updateSSOUser', 10, 2 );
 }
 // * Reject authentication if $attributes doesn't include the authorized group.
-add_filter($pluginSettings['Integrations']['hook_login'], function( $ret, $attributes ) {
+add_filter($pluginSettings['Integrations']['hook_pre_authentication'], function( $ret, $attributes ) {
 	global $pluginSettings;
 	$username = $attributes['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'][0];
 	if ( !stristr($username, $pluginSettings['MS_Graph']['base_domain']) ) {
@@ -158,11 +158,11 @@ add_filter($pluginSettings['Integrations']['hook_login'], function( $ret, $attri
 	}
 	return $ret;
 }, 10, 2 );
-add_filter( 'login_redirect', function ($url, $request, $user) {
-	if(isset($_REQUEST) && isset($_REQUEST['RelayState']) && !stristr($_REQUEST['RelayState'], 'login.php')) {
-		wp_redirect($_REQUEST['RelayState']);
-		die;
-	}
-	return $url;
-}, 10, 3 );
+// add_filter( 'login_redirect', function ($url, $request, $user) {
+// 	if(isset($_REQUEST) && isset($_REQUEST['RelayState']) && !stristr($_REQUEST['RelayState'], 'login.php')) {
+// 		wp_redirect($_REQUEST['RelayState']);
+// 		die;
+// 	}
+// 	return $url;
+// }, 10, 3 );
 ?>
