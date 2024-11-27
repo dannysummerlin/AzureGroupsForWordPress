@@ -9,7 +9,7 @@
 # License URI: https://www.gnu.org/licenses/gpl-2.0.html
 # Text Domain: summerlinco
 
-$pluginSettings = parse_ini_file('creds.ini', true);
+$pluginSettings = parse_ini_file('settings.ini', true);
 
 function curl_call($url, $method = 'post', $data = NULL, array $options = array()) {
 	$defaults = array(
