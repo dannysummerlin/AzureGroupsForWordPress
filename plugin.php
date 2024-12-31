@@ -2,7 +2,7 @@
 # Plugin Name: Azure Group to WordPress Roles
 # Plugin URI:  https://github.com/dannysummerlin/AzureGroupsForWordPress
 # Description: Works with the WP SAML plugin by Pantheon, handles group syncing after login
-# Version:     20241127
+# Version:     20241231
 # Author:      Danny Summerlin
 # Author URI:  https://summerlin.co
 # License:     GPL2
@@ -38,56 +38,56 @@ function curl_get($url, array $get = NULL, array $options = array()) { return cu
 function getAzureGroups($groupLink) {
 	global $pluginSettings;
 	// Get Azure Token for MS Graph
-		$azureToken = get_transient('azureToken');
-		if (false == $azureToken) {
-			$tokenString = curl_post('https://login.microsoftonline.com/'.$pluginSettings['MS_Graph']['tenant_id'].'/oauth2/v2.0/token', http_build_query(array(
-				'client_id' => $pluginSettings['MS_Graph']['client_id'],
-				'client_secret' => $pluginSettings['MS_Graph']['client_secret'],
-				'scope' => 'https://graph.microsoft.com/.default',
-				'grant_type' => 'client_credentials'
-			)));
-	
-			if($tokenString !== '') {
-				$tokenResponse = json_decode($tokenString);
-				$azureToken = $tokenResponse->access_token;
-				set_transient( 'azureToken', $azureToken, $tokenResponse->expires_in);
-			}
+	$azureToken = get_transient('azureToken');
+	if (false == $azureToken) {
+		$tokenString = curl_post('https://login.microsoftonline.com/'.$pluginSettings['MS_Graph']['tenant_id'].'/oauth2/v2.0/token', http_build_query(array(
+			'client_id' => $pluginSettings['MS_Graph']['client_id'],
+			'client_secret' => $pluginSettings['MS_Graph']['client_secret'],
+			'scope' => 'https://graph.microsoft.com/.default',
+			'grant_type' => 'client_credentials'
+		)));
+
+		if($tokenString !== '') {
+			$tokenResponse = json_decode($tokenString);
+			$azureToken = $tokenResponse->access_token;
+			set_transient( 'azureToken', $azureToken, $tokenResponse->expires_in);
 		}
-	// with token, get all groups
-		if($azureToken) {
-			if ( false === ( $azureGroups = get_transient( 'azureGroups' ) ) ) {
-				$rawAzureGroupsResponse = curl_get('https://graph.microsoft.com/v1.0/groups?$select=id,displayName,onPremisesSamAccountName&$top=999&$filter=onPremisesSyncEnabled%20eq%20true', null, array(
-					CURLOPT_HTTPHEADER => array(
-						"Authorization: Bearer ".urlencode($azureToken),
-						"Content-Type: application/json"
-					)
-				));
-				$rawAzureGroups = json_decode($rawAzureGroupsResponse);
-				$azureGroups = $rawAzureGroups->value;
-				set_transient( 'azureGroups', $azureGroups, 12 * HOUR_IN_SECONDS);
-			}
-	// get users groups
-			$url = str_replace("https://graph.windows.net", "https://graph.microsoft.com/v1.0", $groupLink);
-			$url = str_replace('Objects', 'Groups', $url);
-			$rawUserGroups = json_decode(curl_post($url, json_encode(array('securityEnabledOnly'=>true)), array(
+	}
+// with token, get all groups
+	if($azureToken) {
+		if ( false === ( $azureGroups = get_transient( 'azureGroups' ) ) ) {
+			$rawAzureGroupsResponse = curl_get('https://graph.microsoft.com/v1.0/groups?$select=id,displayName,onPremisesSamAccountName&$top=999&$filter=onPremisesSyncEnabled%20eq%20true', null, array(
 				CURLOPT_HTTPHEADER => array(
 					"Authorization: Bearer ".urlencode($azureToken),
 					"Content-Type: application/json"
 				)
-			)));
-			$groupIds = $rawUserGroups->value;
-			$userGroups = array();
-			$groupIdCount = count($groupIds);
-			for($i=0;$i<$groupIdCount;$i++) {
-				$g = $groupIds[$i];
-				$group = array_filter($azureGroups, function($k) use ($g) {
-					return ($k->id === $g);
-				});
-				if(count($group))
-					array_push($userGroups, array_pop($group)->onPremisesSamAccountName);
-			}
-			return $userGroups;
+			));
+			$rawAzureGroups = json_decode($rawAzureGroupsResponse);
+			$azureGroups = $rawAzureGroups->value;
+			set_transient( 'azureGroups', $azureGroups, 12 * HOUR_IN_SECONDS);
 		}
+// get users groups
+		$url = str_replace("https://graph.windows.net", "https://graph.microsoft.com/v1.0", $groupLink);
+		$url = str_replace('Objects', 'Groups', $url);
+		$rawUserGroups = json_decode(curl_post($url, json_encode(array('securityEnabledOnly'=>true)), array(
+			CURLOPT_HTTPHEADER => array(
+				"Authorization: Bearer ".urlencode($azureToken),
+				"Content-Type: application/json"
+			)
+		)));
+		$groupIds = $rawUserGroups->value;
+		$userGroups = array();
+		$groupIdCount = count($groupIds);
+		for($i=0;$i<$groupIdCount;$i++) {
+			$g = $groupIds[$i];
+			$group = array_filter($azureGroups, function($k) use ($g) {
+				return ($k->id === $g);
+			});
+			if(count($group))
+				array_push($userGroups, array_pop($group)->onPremisesSamAccountName);
+		}
+		return $userGroups;
+	}
 }
 
 function mapGroupsToRoles($user, $rolesActiveDirectory) {
@@ -105,8 +105,9 @@ function mapGroupsToRoles($user, $rolesActiveDirectory) {
 				$user->add_role($adRole);
 			} // add else create role and add AFTER we clean up AD roles on older staff
 		}
-		foreach($rolesRemove as $wpRole) { 
-			$user->remove_role($wpRole);
+		foreach($rolesRemove as $wpRole) {
+			if($wpRole !== 'administrator') // manual exception to preserve admins 
+				$user->remove_role($wpRole);
 		}
 		wp_cache_delete($user->ID, 'users');
 		wp_cache_delete($user->user_login, 'userlogins');
