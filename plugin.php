@@ -164,11 +164,12 @@ add_filter($pluginSettings['Integrations']['hook_pre_authentication'], function(
 }, 10, 2 );
 
 // SSO redirect
-add_filter('login_redirect', function ( $url, $request, $user ) {
-	if(isset($_REQUEST) && isset($_REQUEST['RelayState']) && !stristr($_REQUEST['RelayState'], 'login.php')) {
-		wp_redirect($_REQUEST['RelayState']);
-		die;
-	}
-	return $url;
-}, 10, 3);
+/* NOT CURRENTLY WORKING  */
+// add_filter('login_redirect', function ( $url, $request, $user ) {
+// 	if(isset($_REQUEST) && isset($_REQUEST['RelayState']) && !stristr($_REQUEST['RelayState'], 'login.php')) {
+// 		wp_redirect($_REQUEST['RelayState']);
+// 		die;
+// 	}
+// 	return $url;
+// }, 10, 3);
 ?>
