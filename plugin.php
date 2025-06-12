@@ -2,7 +2,7 @@
 # Plugin Name: Azure Group to WordPress Roles
 # Plugin URI:  https://github.com/dannysummerlin/AzureGroupsForWordPress
 # Description: Works with the WP SAML plugin by Pantheon, handles group syncing after login
-# Version:     20241231
+# Version:     20250612
 # Author:      Danny Summerlin
 # Author URI:  https://summerlin.co
 # License:     GPL2
@@ -103,7 +103,10 @@ function mapGroupsToRoles($user, $rolesActiveDirectory) {
 			$wpRole = get_role($adRole);
 			if(isset($wpRole)) {
 				$user->add_role($adRole);
-			} // add else create role and add AFTER we clean up AD roles on older staff
+			} else {
+				add_role($adRole, $adRole, array()); // auto-create permissionless role
+				$user->add_role($adRole);
+			}
 		}
 		foreach($rolesRemove as $wpRole) {
 			if($wpRole !== 'administrator') // manual exception to preserve admins 
@@ -159,11 +162,13 @@ add_filter($pluginSettings['Integrations']['hook_pre_authentication'], function(
 	}
 	return $ret;
 }, 10, 2 );
-// add_filter( 'login_redirect', function ($url, $request, $user) {
-// 	if(isset($_REQUEST) && isset($_REQUEST['RelayState']) && !stristr($_REQUEST['RelayState'], 'login.php')) {
-// 		wp_redirect($_REQUEST['RelayState']);
-// 		die;
-// 	}
-// 	return $url;
-// }, 10, 3 );
+
+// SSO redirect
+add_filter('login_redirect', function ( $url, $request, $user ) {
+	if(isset($_REQUEST) && isset($_REQUEST['RelayState']) && !stristr($_REQUEST['RelayState'], 'login.php')) {
+		wp_redirect($_REQUEST['RelayState']);
+		die;
+	}
+	return $url;
+}, 10, 3);
 ?>
